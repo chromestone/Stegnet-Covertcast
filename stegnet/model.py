@@ -37,7 +37,8 @@ class Spatial2Channel(nn.Module):
 		# add padding for extra channels produced and no padding for height and width
 		# basically the first in_channels number of channels
 		# in the output will have skip connections
-		self.padding = (0, out_channels - in_channels, 0, 0, 0, 0)
+		# the padding is applied backwards and I don't know why
+		self.padding = (0, 0, 0, 0, 0, out_channels - in_channels)
 		self.sep_conv = SeparableConv2d(in_channels, out_channels, kernel_size, padding='same')
 
 	def forward(self, x):
@@ -65,9 +66,9 @@ class Stegnet(nn.Module):
 		self.layer5 = Spatial2Channel(nn.ELU(), 128, 128, 3)
 		self.activ5 = nn.ELU()
 
-		self.layer6 = nn.Conv2d(128, 32, 3)
+		self.layer6 = nn.Conv2d(128, 32, 3, padding='same')
 		self.activ6 = nn.ELU()
-		self.layer7 = nn.Conv2d(32, 3, 3)
+		self.layer7 = nn.Conv2d(32, 3, 3, padding='same')
 
 	def forward(self, x):
 
