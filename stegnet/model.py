@@ -51,13 +51,13 @@ class Spatial2Channel(nn.Module):
 
 		return x
 
-class StegnetEncoder(nn.Module):
+class Stegnet(nn.Module):
 
-	def __init__(self):
+	def __init__(self, in_channels):
 
 		super().__init__()
 
-		self.layer0 = SeparableConv2d(6, 32, 3, padding='same')
+		self.layer0 = SeparableConv2d(in_channels, 32, 3, padding='same')
 		self.layer1 = Spatial2Channel(nn.ELU(), 32, 32, 3)
 		self.layer2 = Spatial2Channel(nn.ELU(), 32, 64, 3)
 		self.layer3 = Spatial2Channel(nn.ELU(), 64, 64, 3)
