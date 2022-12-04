@@ -4,6 +4,7 @@ Source:
 https://towardsdatascience.com/pytorch-ignite-classifying-tiny-imagenet-with-efficientnet-e5b1768e5e8f
 """
 
+import os
 import sys
 
 assert len(sys.argv) > 1, 'Specify data split path.'

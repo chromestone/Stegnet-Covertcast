@@ -32,7 +32,7 @@ the_transform = T.Compose([
 ])
 
 train_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'train'), transform=the_transform)
-val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val'), transform=the_transform)
+val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val', 'images'), transform=the_transform)
 # BATCH_SIZE * 2 because we divide data into pairs
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2, shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2, shuffle=False)
@@ -61,8 +61,8 @@ for epoch in range(EPOCHS):
 
 		optimizer.zero_grad()
 
-		covers = inputs[:BATCH_SIZE // 2]
-		secrets = inputs[BATCH_SIZE // 2:]
+		covers = inputs[:BATCH_SIZE]
+		secrets = inputs[BATCH_SIZE:]
 		embeds = encoder(torch.cat([covers, secrets], dim=1))
 		outputs = decoder(embeds)
 
@@ -78,9 +78,9 @@ for epoch in range(EPOCHS):
 
 	torch.save({
 		'epoch': epoch + 1,
-		'loss': train_running_loss,
-		'encoder': encoder.state_dict(),
-		'decoder': decoder.state_dict(),
+		'loss': train_loss,
+		'encoder_dict': encoder.state_dict(),
+		'decoder_dict': decoder.state_dict(),
 		'optimizer_dict': optimizer.state_dict()
 	}, os.path.join(sys.argv[2], f"epoch-{epoch + 1}.pt"))
 
@@ -94,8 +94,8 @@ for epoch in range(EPOCHS):
 
 			inputs, _ = data
 
-			covers = inputs[:BATCH_SIZE // 2]
-			secrets = inputs[BATCH_SIZE // 2:]
+			covers = inputs[:BATCH_SIZE]
+			secrets = inputs[BATCH_SIZE:]
 			embeds = encoder(torch.cat([covers, secrets], dim=1))
 			outputs = decoder(embeds)
 
@@ -106,4 +106,4 @@ for epoch in range(EPOCHS):
 			val_loss += loss.item()
 		val_loss /= i
 
-	print(f"epoch={epoch};train_loss={train_running_loss};val_loss={val_running_loss}")
+	print(f"epoch={epoch};train_loss={train_loss};val_loss={train_loss}")
