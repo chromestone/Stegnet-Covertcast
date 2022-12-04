@@ -32,7 +32,7 @@ the_transform = T.Compose([
 ])
 
 train_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'train'), transform=the_transform)
-val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val', 'images'), transform=the_transform)
+val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val'), transform=the_transform)
 # BATCH_SIZE * 2 because we divide data into pairs
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2, shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2, shuffle=False)
