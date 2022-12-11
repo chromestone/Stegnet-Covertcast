@@ -26,6 +26,8 @@ assert len(sys.argv) > 2, 'Specify output path.'
 BATCH_SIZE = 64
 EPOCHS = 100
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 the_transform = T.Compose([
 	T.ToTensor(),
 	T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -34,8 +36,10 @@ the_transform = T.Compose([
 train_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'train'), transform=the_transform)
 val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val'), transform=the_transform)
 # BATCH_SIZE * 2 because we divide data into pairs
-train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2, shuffle=True)
-val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2, shuffle=False)
+train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2, shuffle=True,
+								device=DEVICE)
+val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2, shuffle=False,
+							device=DEVICE)
 
 encoder = Stegnet(6)
 decoder = Stegnet(3)
@@ -48,6 +52,9 @@ if len(sys.argv) > 3:
 	encoder.load_state_dict(checkpoint['encoder_dict'])
 	decoder.load_state_dict(checkpoint['decoder_dict'])
 	optimizer.load_state_dict(checkpoint['optimizer_dict'])
+
+encoder.to(device=DEVICE)
+decoder.to(device=DEVICE)
 
 for epoch in range(EPOCHS):
 
