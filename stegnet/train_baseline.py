@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 
 from torchvision import transforms as T
 from torchvision import datasets
+from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
 
@@ -23,8 +24,11 @@ from model import Stegnet
 assert len(sys.argv) > 1, 'Specify data path.'
 assert len(sys.argv) > 2, 'Specify output path.'
 
+# tensorboard logger
+writer = SummaryWriter()
+
 BATCH_SIZE = 64
-EPOCHS = 100
+EPOCHS = 10
 
 the_transform = T.Compose([
 	T.ToTensor(),
@@ -84,6 +88,8 @@ for epoch in range(EPOCHS):
 		'optimizer_dict': optimizer.state_dict()
 	}, os.path.join(sys.argv[2], f"epoch-{epoch + 1}.pt"))
 
+	writer.add_scalar('Loss/train', train_loss.item(), epoch)
+
 	encoder.eval()
 	decoder.eval()
 
@@ -105,5 +111,7 @@ for epoch in range(EPOCHS):
 
 			val_loss += loss.item()
 		val_loss /= i
+	writer.add_scalar('Loss/val', val_loss.item(), epoch)
 
 	print(f"epoch={epoch};train_loss={train_loss};val_loss={train_loss}")
+	writer.close()
