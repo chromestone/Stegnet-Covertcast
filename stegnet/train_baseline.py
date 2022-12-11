@@ -40,8 +40,11 @@ the_transform = T.Compose([
 train_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'train'), transform=the_transform)
 val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val'), transform=the_transform)
 # BATCH_SIZE * 2 because we divide data into pairs
-train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2, shuffle=True)
-val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2, shuffle=False)
+# it's very important to drop last to always ensure we can divide by 2
+train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2,
+								shuffle=True, drop_last=True)
+val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2,
+							shuffle=False, drop_last=True)
 
 encoder = Stegnet(6)
 decoder = Stegnet(3)
