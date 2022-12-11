@@ -36,10 +36,8 @@ the_transform = T.Compose([
 train_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'train'), transform=the_transform)
 val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val'), transform=the_transform)
 # BATCH_SIZE * 2 because we divide data into pairs
-train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2, shuffle=True,
-								device=DEVICE)
-val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2, shuffle=False,
-							device=DEVICE)
+train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2, shuffle=True)
+val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2, shuffle=False)
 
 encoder = Stegnet(6)
 decoder = Stegnet(3)
@@ -53,8 +51,8 @@ if len(sys.argv) > 3:
 	decoder.load_state_dict(checkpoint['decoder_dict'])
 	optimizer.load_state_dict(checkpoint['optimizer_dict'])
 
-encoder.to(device=DEVICE)
-decoder.to(device=DEVICE)
+encoder.to(DEVICE)
+decoder.to(DEVICE)
 
 for epoch in range(EPOCHS):
 
@@ -65,6 +63,7 @@ for epoch in range(EPOCHS):
 	for i, data in tqdm(enumerate(train_dataloader, start=1)):
 
 		inputs, _ = data
+		inputs = inputs.to(DEVICE)
 
 		optimizer.zero_grad()
 
@@ -100,6 +99,7 @@ for epoch in range(EPOCHS):
 		for i, data in enumerate(val_dataloader, start=1):
 
 			inputs, _ = data
+			inputs = inputs.to(DEVICE)
 
 			covers = inputs[:BATCH_SIZE]
 			secrets = inputs[BATCH_SIZE:]
