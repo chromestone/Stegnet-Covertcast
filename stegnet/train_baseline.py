@@ -120,5 +120,5 @@ for epoch in range(EPOCHS):
 		val_loss /= i
 	writer.add_scalar('Loss/val', val_loss, epoch)
 
-	print(f"epoch={epoch};train_loss={train_loss};val_loss={train_loss}")
+	print(f"epoch={epoch};train_loss={train_loss};val_loss={val_loss}")
 	writer.close()
