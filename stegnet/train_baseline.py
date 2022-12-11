@@ -30,6 +30,8 @@ writer = SummaryWriter()
 BATCH_SIZE = 64
 EPOCHS = 10
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 the_transform = T.Compose([
 	T.ToTensor(),
 	T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -53,6 +55,9 @@ if len(sys.argv) > 3:
 	decoder.load_state_dict(checkpoint['decoder_dict'])
 	optimizer.load_state_dict(checkpoint['optimizer_dict'])
 
+encoder.to(DEVICE)
+decoder.to(DEVICE)
+
 for epoch in range(EPOCHS):
 
 	encoder.train()
@@ -62,6 +67,7 @@ for epoch in range(EPOCHS):
 	for i, data in tqdm(enumerate(train_dataloader, start=1)):
 
 		inputs, _ = data
+		inputs = inputs.to(DEVICE)
 
 		optimizer.zero_grad()
 
@@ -99,6 +105,7 @@ for epoch in range(EPOCHS):
 		for i, data in enumerate(val_dataloader, start=1):
 
 			inputs, _ = data
+			inputs = inputs.to(DEVICE)
 
 			covers = inputs[:BATCH_SIZE]
 			secrets = inputs[BATCH_SIZE:]
