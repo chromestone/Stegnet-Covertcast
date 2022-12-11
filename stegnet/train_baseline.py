@@ -46,8 +46,8 @@ train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2,
 val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2,
 							shuffle=False, drop_last=True)
 
-encoder = Stegnet(6)
-decoder = Stegnet(3)
+encoder = Stegnet(6).to(DEVICE)
+decoder = Stegnet(3).to(DEVICE)
 
 optimizer = torch.optim.Adam(chain(encoder.parameters(), decoder.parameters()))
 
@@ -57,9 +57,6 @@ if len(sys.argv) > 3:
 	encoder.load_state_dict(checkpoint['encoder_dict'])
 	decoder.load_state_dict(checkpoint['decoder_dict'])
 	optimizer.load_state_dict(checkpoint['optimizer_dict'])
-
-encoder.to(DEVICE)
-decoder.to(DEVICE)
 
 for epoch in range(EPOCHS):
 
@@ -97,7 +94,7 @@ for epoch in range(EPOCHS):
 		'optimizer_dict': optimizer.state_dict()
 	}, os.path.join(sys.argv[2], f"epoch-{epoch + 1}.pt"))
 
-	writer.add_scalar('Loss/train', train_loss.item(), epoch)
+	writer.add_scalar('Loss/train', train_loss, epoch)
 
 	encoder.eval()
 	decoder.eval()
@@ -121,7 +118,7 @@ for epoch in range(EPOCHS):
 
 			val_loss += loss.item()
 		val_loss /= i
-	writer.add_scalar('Loss/val', val_loss.item(), epoch)
+	writer.add_scalar('Loss/val', val_loss, epoch)
 
 	print(f"epoch={epoch};train_loss={train_loss};val_loss={train_loss}")
 	writer.close()
