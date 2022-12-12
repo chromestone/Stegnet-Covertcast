@@ -1,4 +1,10 @@
 """
+
+Usage:
+mkdir ckpt_dir
+python3 train_baseline.py tiny-imagenet-200 ckpt_dir none [restart ckpt]
+python3 train_baseline.py tiny-imagenet-200 ckpt_dir corr [restart ckpt]
+
 Sources:
 https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 https://towardsdatascience.com/pytorch-ignite-classifying-tiny-imagenet-with-efficientnet-e5b1768e5e8f
@@ -20,15 +26,20 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from model import Stegnet
+from loss import correlation
 
 assert len(sys.argv) > 1, 'Specify data path.'
 assert len(sys.argv) > 2, 'Specify output path.'
+assert len(sys.argv) > 3, 'Specify loss.'
+assert sys.argv[3] in ('none', 'corr')
 
 # tensorboard logger
 writer = SummaryWriter()
 
 BATCH_SIZE = 64
 EPOCHS = 10
+
+COVARIANCE_LOSS = correlation if sys.argv[3] == 'corr' else None
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -51,7 +62,7 @@ decoder = Stegnet(3).to(DEVICE)
 
 optimizer = torch.optim.Adam(chain(encoder.parameters(), decoder.parameters()))
 
-if len(sys.argv) > 3:
+if len(sys.argv) > 4:
 
 	checkpoint = torch.load(sys.argv[3], map_location='cpu')
 	encoder.load_state_dict(checkpoint['encoder_dict'])
