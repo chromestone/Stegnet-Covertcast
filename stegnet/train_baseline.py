@@ -130,6 +130,9 @@ for epoch in range(EPOCHS):
 			loss = (F.l1_loss(embeds, covers) + F.l1_loss(outputs, secrets) +
 					torch.mean(torch.var(embeds - covers, dim=(1, 2, 3), unbiased=True)) +
 					torch.mean(torch.var(outputs - secrets, dim=(1, 2, 3), unbiased=True)))
+			if CORR_LOSS is not None:
+
+				loss += CORR_LOSS(embeds - covers, secrets)
 
 			val_loss += loss.item()
 		val_loss /= i
