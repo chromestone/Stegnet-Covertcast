@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms as T
 from torchvision import datasets
 from torch.utils.tensorboard import SummaryWriter
-
+from pathlib import Path
 from tqdm import tqdm
 
 from model import Stegnet
@@ -39,7 +39,7 @@ class Training():
 		args = self.load_args()
 		# loading arguments
 		self.data_path = args.dataset
-		output_path = args.output_dir
+		output_path = Path(args.output_dir)
 		loss_type = args.loss
 		self.load_weights = args.load_weights
 		# current timestamp
@@ -51,13 +51,13 @@ class Training():
 		self.epochs = epochs
 		# create output directory
 		if self.load_weights:
-			self.output_path = os.path.join(output_path, self.load_weights)
-			if not os.path.isdir(self.output_path): raise ValueError('Checkpoint not found.')
+			self.output_path = output_path/self.load_weights
+			if not self.output_path.is_dir(): raise ValueError('Checkpoint not found.')
 		else:
-			self.output_path = os.path.join(output_path, self.timestamp)
-			if not os.path.exists(self.output_path): os.makedirs(self.output_path)
+			self.output_path =output_path/self.timestamp
+			if not self.output_path.is_dir(): self.output_path.mkdir(parents=True)
 		#  tensorboard logger
-		self.writer = SummaryWriter(log_dir = self.output_path)
+		self.writer = SummaryWriter(log_dir = self.output_path/'callbacks')
 
 	def load_args(self):
 		parser = argparse.ArgumentParser()
@@ -86,24 +86,27 @@ class Training():
 		return train_dataloader, val_dataloader
 	
 	def load_ckpts(self, encoder, decoder, optimizer):
-		weight_path = os.path.join(self.output_path, self.load_weights)
-		if not os.path.exists(weight_path):
-			raise ValueError('Checkpoint not found.')
-		checkpoint = torch.load(weight_path, map_location='cpu')
+		print(f'Loading weights from {self.output_path}')
+		all_weights = []
+		for file in os.listdir(self.output_path/'weights'):
+			if file.endswith('.pt'):
+				all_weights.append(file)
+		latest_weights = sorted(all_weights)[-1]
+		checkpoint = torch.load(self.output_path/'weights'/latest_weights, map_location='cpu')
 		encoder.load_state_dict(checkpoint['encoder_dict'])
 		decoder.load_state_dict(checkpoint['decoder_dict'])
 		optimizer.load_state_dict(checkpoint['optimizer_dict'])
-		return encoder, decoder, optimizer
+		return encoder, decoder, optimizer, len(all_weights)
 	
 	def train(self, train_dataloader, val_dataloader):
 		encoder = Stegnet(6).to(DEVICE)
 		decoder = Stegnet(3).to(DEVICE)
 		optimizer = torch.optim.Adam(chain(encoder.parameters(), decoder.parameters()))
-
+		start_epoch = 0
 		if self.load_weights:
-			encoder, decoder, optimizer = self.load_ckpts(encoder, decoder, optimizer)
+			encoder, decoder, optimizer, start_epoch = self.load_ckpts(encoder, decoder, optimizer)
 
-		for epoch in range(self.epochs):
+		for epoch in range(start_epoch, self.epochs):
 			# ----------------- training -----------------
 			encoder.train()
 			decoder.train()
@@ -132,13 +135,16 @@ class Training():
 				train_loss += loss.item()
 			train_loss /= i
 
+			# save weights
+			weight_path = self.output_path/"weights"
+			weight_path.mkdir(exist_ok=True)
 			torch.save({
-				'epoch': epoch + 1,
+				'epoch': epoch,
 				'loss': train_loss,
 				'encoder_dict': encoder.state_dict(),
 				'decoder_dict': decoder.state_dict(),
 				'optimizer_dict': optimizer.state_dict()
-			}, os.path.join(self.output_path, f"epoch-{epoch + 1}.pt"))
+			}, weight_path/f"epoch-{epoch}.pt")
 
 			self.writer.add_scalar('Loss/train', train_loss, epoch)
 			# ----------------- validation -----------------
@@ -172,7 +178,7 @@ class Training():
 
 if __name__ == '__main__':
 	batch_size = 64
-	epochs = 1
+	epochs = 3
 	train = Training(batch_size, epochs)
 	train_dataloader, val_dataloader = train.data_loader()
 	train.train(train_dataloader, val_dataloader)
