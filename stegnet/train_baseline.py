@@ -27,6 +27,7 @@ from tqdm import tqdm
 from model import Stegnet
 from loss import correlation
 
+
 # assert len(sys.argv) > 1, 'Specify data path.'
 # assert len(sys.argv) > 2, 'Specify output path.'
 # assert len(sys.argv) > 3, 'Specify loss.'
@@ -178,7 +179,7 @@ class Training():
 
 if __name__ == '__main__':
 	batch_size = 64
-	epochs = 3
+	epochs = 100
 	train = Training(batch_size, epochs)
 	train_dataloader, val_dataloader = train.data_loader()
 	train.train(train_dataloader, val_dataloader)
