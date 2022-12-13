@@ -10,10 +10,9 @@ https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 https://towardsdatascience.com/pytorch-ignite-classifying-tiny-imagenet-with-efficientnet-e5b1768e5e8f
 https://pytorch.org/tutorials/beginner/saving_loading_models.html
 """
-
 from itertools import chain
-import os
-import sys
+import os, argparse
+import sys, time
 
 import torch
 import torch.nn.functional as F
@@ -28,115 +27,153 @@ from tqdm import tqdm
 from model import Stegnet
 from loss import correlation
 
-assert len(sys.argv) > 1, 'Specify data path.'
-assert len(sys.argv) > 2, 'Specify output path.'
-assert len(sys.argv) > 3, 'Specify loss.'
-assert sys.argv[3] in ('none', 'corr')
-
-# tensorboard logger
-writer = SummaryWriter()
-
-BATCH_SIZE = 64
-EPOCHS = 10
-
-CORR_LOSS = correlation if sys.argv[3] == 'corr' else None
+# assert len(sys.argv) > 1, 'Specify data path.'
+# assert len(sys.argv) > 2, 'Specify output path.'
+# assert len(sys.argv) > 3, 'Specify loss.'
+# assert sys.argv[3] in ('none', 'corr')
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-the_transform = T.Compose([
-	T.ToTensor(),
-	T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
+class Training():
+	def __init__(self, batch_size, epochs):
+		args = self.load_args()
+		# loading arguments
+		self.data_path = args.dataset
+		output_path = args.output_dir
+		loss_type = args.loss
+		self.load_weights = args.load_weights
+		# current timestamp
+		self.timestamp = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime()) if not self.load_weights else self.load_weights
+		# determine if use correlation loss
+		self.corr_loss = correlation if loss_type == 'corr' else None
+		# hyperparameters
+		self.batch_size = batch_size
+		self.epochs = epochs
+		# create output directory
+		if self.load_weights:
+			self.output_path = os.path.join(output_path, self.load_weights)
+			if not os.path.isdir(self.output_path): raise ValueError('Checkpoint not found.')
+		else:
+			self.output_path = os.path.join(output_path, self.timestamp)
+			if not os.path.exists(self.output_path): os.makedirs(self.output_path)
+		#  tensorboard logger
+		self.writer = SummaryWriter(log_dir = self.output_path)
 
-train_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'train'), transform=the_transform)
-val_dataset = datasets.ImageFolder(os.path.join(sys.argv[1], 'val'), transform=the_transform)
-# BATCH_SIZE * 2 because we divide data into pairs
-# it's very important to drop last to always ensure we can divide by 2
-train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE * 2,
+	def load_args(self):
+		parser = argparse.ArgumentParser()
+		parser.add_argument('--dataset', type=str, help='Path to data.', default='tiny-imagenet-200')
+		parser.add_argument('--output_dir', type=str, help='Path to output.', default='output_dir')
+		parser.add_argument('--loss', type=str, help='Loss to use.')
+		parser.add_argument('--load_weights', type=str, help='Restart from checkpoint with timestamp.', required=False)
+		args = parser.parse_args()
+		return args
+	
+	def data_loader(self):
+		data_transform = T.Compose([
+			T.ToTensor(),
+			T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+		])
+
+		train_dataset = datasets.ImageFolder(os.path.join(self.data_path, 'train'), transform=data_transform)
+		val_dataset = datasets.ImageFolder(os.path.join(self.data_path, 'val'), transform=data_transform)
+
+		# BATCH_SIZE * 2 because we divide data into pairs
+		# it's very important to drop last to always ensure we can divide by 2
+		train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size * 2,
 								shuffle=True, drop_last=True)
-val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2,
+		val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size * 2,
 							shuffle=False, drop_last=True)
+		return train_dataloader, val_dataloader
+	
+	def load_ckpts(self, encoder, decoder, optimizer):
+		weight_path = os.path.join(self.output_path, self.load_weights)
+		if not os.path.exists(weight_path):
+			raise ValueError('Checkpoint not found.')
+		checkpoint = torch.load(weight_path, map_location='cpu')
+		encoder.load_state_dict(checkpoint['encoder_dict'])
+		decoder.load_state_dict(checkpoint['decoder_dict'])
+		optimizer.load_state_dict(checkpoint['optimizer_dict'])
+		return encoder, decoder, optimizer
+	
+	def train(self, train_dataloader, val_dataloader):
+		encoder = Stegnet(6).to(DEVICE)
+		decoder = Stegnet(3).to(DEVICE)
+		optimizer = torch.optim.Adam(chain(encoder.parameters(), decoder.parameters()))
 
-encoder = Stegnet(6).to(DEVICE)
-decoder = Stegnet(3).to(DEVICE)
+		if self.load_weights:
+			encoder, decoder, optimizer = self.load_ckpts(encoder, decoder, optimizer)
 
-optimizer = torch.optim.Adam(chain(encoder.parameters(), decoder.parameters()))
+		for epoch in range(self.epochs):
+			# ----------------- training -----------------
+			encoder.train()
+			decoder.train()
 
-if len(sys.argv) > 4:
+			train_loss = 0.0
+			for i, data in tqdm(enumerate(train_dataloader, start=1)):
 
-	checkpoint = torch.load(sys.argv[3], map_location='cpu')
-	encoder.load_state_dict(checkpoint['encoder_dict'])
-	decoder.load_state_dict(checkpoint['decoder_dict'])
-	optimizer.load_state_dict(checkpoint['optimizer_dict'])
+				inputs, _ = data
+				inputs = inputs.to(DEVICE)
 
-for epoch in range(EPOCHS):
+				optimizer.zero_grad()
 
-	encoder.train()
-	decoder.train()
+				covers = inputs[:self.batch_size]
+				secrets = inputs[self.batch_size:]
+				embeds = encoder(torch.cat([covers, secrets], dim=1))
+				outputs = decoder(embeds)
 
-	train_loss = 0.0
-	for i, data in tqdm(enumerate(train_dataloader, start=1)):
+				loss = (F.l1_loss(embeds, covers) + F.l1_loss(outputs, secrets) +
+						torch.mean(torch.var(embeds - covers, dim=(1, 2, 3), unbiased=True)) +
+						torch.mean(torch.var(outputs - secrets, dim=(1, 2, 3), unbiased=True)))
+				if self.corr_loss is not None:
+					loss += torch.abs(self.corr_loss(embeds - covers, secrets))
 
-		inputs, _ = data
-		inputs = inputs.to(DEVICE)
+				loss.backward()
+				optimizer.step()
+				train_loss += loss.item()
+			train_loss /= i
 
-		optimizer.zero_grad()
+			torch.save({
+				'epoch': epoch + 1,
+				'loss': train_loss,
+				'encoder_dict': encoder.state_dict(),
+				'decoder_dict': decoder.state_dict(),
+				'optimizer_dict': optimizer.state_dict()
+			}, os.path.join(self.output_path, f"epoch-{epoch + 1}.pt"))
 
-		covers = inputs[:BATCH_SIZE]
-		secrets = inputs[BATCH_SIZE:]
-		embeds = encoder(torch.cat([covers, secrets], dim=1))
-		outputs = decoder(embeds)
+			self.writer.add_scalar('Loss/train', train_loss, epoch)
+			# ----------------- validation -----------------
+			encoder.eval()
+			decoder.eval()
+			with torch.no_grad():
 
-		loss = (F.l1_loss(embeds, covers) + F.l1_loss(outputs, secrets) +
-				torch.mean(torch.var(embeds - covers, dim=(1, 2, 3), unbiased=True)) +
-				torch.mean(torch.var(outputs - secrets, dim=(1, 2, 3), unbiased=True)))
-		if CORR_LOSS is not None:
+				val_loss = 0.0
+				for i, data in enumerate(val_dataloader, start=1):
 
-			loss += torch.abs(CORR_LOSS(embeds - covers, secrets))
+					inputs, _ = data
+					inputs = inputs.to(DEVICE)
 
-		loss.backward()
+					covers = inputs[:self.batch_size]
+					secrets = inputs[self.batch_size:]
+					embeds = encoder(torch.cat([covers, secrets], dim=1))
+					outputs = decoder(embeds)
 
-		optimizer.step()
+					loss = (F.l1_loss(embeds, covers) + F.l1_loss(outputs, secrets) +
+							torch.mean(torch.var(embeds - covers, dim=(1, 2, 3), unbiased=True)) +
+							torch.mean(torch.var(outputs - secrets, dim=(1, 2, 3), unbiased=True)))
+					if self.corr_loss is not None:
+						loss += torch.abs(self.corr_loss(embeds - covers, secrets))
+					val_loss += loss.item()
+				val_loss /= i
+			self.writer.add_scalar('Loss/val', val_loss, epoch)
 
-		train_loss += loss.item()
-	train_loss /= i
+			print(f"epoch={epoch};train_loss={train_loss};val_loss={val_loss}")
+			self.writer.close()
 
-	torch.save({
-		'epoch': epoch + 1,
-		'loss': train_loss,
-		'encoder_dict': encoder.state_dict(),
-		'decoder_dict': decoder.state_dict(),
-		'optimizer_dict': optimizer.state_dict()
-	}, os.path.join(sys.argv[2], f"epoch-{epoch + 1}.pt"))
 
-	writer.add_scalar('Loss/train', train_loss, epoch)
+if __name__ == '__main__':
+	batch_size = 64
+	epochs = 1
+	train = Training(batch_size, epochs)
+	train_dataloader, val_dataloader = train.data_loader()
+	train.train(train_dataloader, val_dataloader)
 
-	encoder.eval()
-	decoder.eval()
-
-	with torch.no_grad():
-
-		val_loss = 0.0
-		for i, data in enumerate(val_dataloader, start=1):
-
-			inputs, _ = data
-			inputs = inputs.to(DEVICE)
-
-			covers = inputs[:BATCH_SIZE]
-			secrets = inputs[BATCH_SIZE:]
-			embeds = encoder(torch.cat([covers, secrets], dim=1))
-			outputs = decoder(embeds)
-
-			loss = (F.l1_loss(embeds, covers) + F.l1_loss(outputs, secrets) +
-					torch.mean(torch.var(embeds - covers, dim=(1, 2, 3), unbiased=True)) +
-					torch.mean(torch.var(outputs - secrets, dim=(1, 2, 3), unbiased=True)))
-			if CORR_LOSS is not None:
-
-				loss += torch.abs(CORR_LOSS(embeds - covers, secrets))
-
-			val_loss += loss.item()
-		val_loss /= i
-	writer.add_scalar('Loss/val', val_loss, epoch)
-
-	print(f"epoch={epoch};train_loss={train_loss};val_loss={val_loss}")
-	writer.close()
