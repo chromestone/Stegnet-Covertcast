@@ -92,7 +92,7 @@ for epoch in range(EPOCHS):
 				torch.mean(torch.var(outputs - secrets, dim=(1, 2, 3), unbiased=True)))
 		if CORR_LOSS is not None:
 
-			loss += CORR_LOSS(embeds - covers, secrets)
+			loss += torch.abs(CORR_LOSS(embeds - covers, secrets))
 
 		loss.backward()
 
@@ -132,7 +132,7 @@ for epoch in range(EPOCHS):
 					torch.mean(torch.var(outputs - secrets, dim=(1, 2, 3), unbiased=True)))
 			if CORR_LOSS is not None:
 
-				loss += CORR_LOSS(embeds - covers, secrets)
+				loss += torch.abs(CORR_LOSS(embeds - covers, secrets))
 
 			val_loss += loss.item()
 		val_loss /= i
