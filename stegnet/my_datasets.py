@@ -19,6 +19,7 @@ class RandomDataset(Dataset):
 		self.img_size = img_size
 		self.six_bit_res = six_bit_res
 		self.bits_per_img = (h // h_res) * (w // w_res) * 6
+		self.transform = transform
 
 		the_rng = np.random.default_rng(seed)
 		self.random_stuff = the_rng.integers(2, size=length - 1 + self.bits_per_img,
