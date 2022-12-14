@@ -27,7 +27,7 @@ from tqdm import tqdm
 from model import Stegnet
 from loss import correlation
 
-from my_dataset import RandomDataset
+from my_datasets import RandomDataset
 
 # assert len(sys.argv) > 1, 'Specify data path.'
 # assert len(sys.argv) > 2, 'Specify output path.'
