@@ -79,11 +79,9 @@ class Training():
 		train_dataset = datasets.ImageFolder(os.path.join(self.data_path, 'train'), transform=data_transform)
 		val_dataset = datasets.ImageFolder(os.path.join(self.data_path, 'val'), transform=data_transform)
 
-		# BATCH_SIZE * 2 because we divide data into pairs
-		# it's very important to drop last to always ensure we can divide by 2
-		train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size * 2,
+		train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size,
 								shuffle=True, drop_last=True)
-		val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size * 2,
+		val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size,
 							shuffle=False, drop_last=True)
 		return train_dataloader, val_dataloader
 	
@@ -108,9 +106,6 @@ class Training():
 		start_epoch = 0
 		if self.load_weights:
 			encoder, decoder, optimizer, start_epoch = self.load_ckpts(encoder, decoder, optimizer)
-
-		# this keeps training examples per epoch equivalent
-		# max_iter = len(train_dataloader) // 2
 
 		for epoch in range(start_epoch, self.epochs):
 			# ----------------- training -----------------
@@ -199,13 +194,16 @@ if __name__ == '__main__':
 		# so midpoint that we want to be 0 is 96. 96/255 is about 0.376.
 		T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])
 	])
-	train_random_dataset = RandomDataset(len(train_dataloader.dataset), 123456789, (64, 64),
+	# dividing by 2 keeps training examples per epoch equivalent
+	train_random_dataset = RandomDataset(len(train_dataloader.dataset) // 2, 123456789, (64, 64),
 											six_bit_res, transform=random_data_transform)
 	val_random_dataset = RandomDataset(len(val_dataloader.dataset), 987654321, (64, 64),
 										six_bit_res, transform=random_data_transform)
 
-	train_random_dataloader
-	val_random_dataloader
+	train_random_dataloader = DataLoader(train_random_dataset, batch_size=batch_size,
+											shuffle=True, drop_last=True)
+	val_random_dataloader = DataLoader(val_random_dataset, batch_size=batch_size,
+										shuffle=False, drop_last=True)
 
-	train.train(train_dataloader, val_dataloader)
+	train.train(train_dataloader, val_dataloader, train_random_dataloader, val_random_dataloader)
 
