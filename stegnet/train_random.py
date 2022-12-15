@@ -83,7 +83,24 @@ class Training():
 								shuffle=True, drop_last=True)
 		val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size,
 							shuffle=False, drop_last=True)
-		return train_dataloader, val_dataloader
+
+		random_data_transform = T.Compose([
+		T.ToTensor(),
+		# possible values are 0, 32, 160, 192 (divided by 255 I think)
+		# so midpoint that we want to be 0 is 96. 96/255 is about 0.376.
+		T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])])
+		# dividing by 2 keeps training examples per epoch equivalent
+		train_random_dataset = RandomDataset(len(train_dataloader.dataset) // 2, 123456789, (64, 64),
+												six_bit_res, transform=random_data_transform)
+		val_random_dataset = RandomDataset(len(val_dataloader.dataset), 987654321, (64, 64),
+											six_bit_res, transform=random_data_transform)
+
+		train_random_dataloader = DataLoader(train_random_dataset, batch_size=batch_size,
+												shuffle=True, drop_last=True)
+		val_random_dataloader = DataLoader(val_random_dataset, batch_size=batch_size,
+										shuffle=False, drop_last=True)
+
+		return train_dataloader, val_dataloader, train_random_dataloader, val_random_dataloader
 	
 	def load_ckpts(self, encoder, decoder, optimizer):
 		print(f'Loading weights from {self.output_path}')
@@ -186,24 +203,7 @@ if __name__ == '__main__':
 	six_bit_res = (2, 2)
 	train = Training(batch_size, epochs)
 
-	train_dataloader, val_dataloader = train.data_loader()
-
-	random_data_transform = T.Compose([
-		T.ToTensor(),
-		# possible values are 0, 32, 160, 192 (divided by 255 I think)
-		# so midpoint that we want to be 0 is 96. 96/255 is about 0.376.
-		T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])
-	])
-	# dividing by 2 keeps training examples per epoch equivalent
-	train_random_dataset = RandomDataset(len(train_dataloader.dataset) // 2, 123456789, (64, 64),
-											six_bit_res, transform=random_data_transform)
-	val_random_dataset = RandomDataset(len(val_dataloader.dataset), 987654321, (64, 64),
-										six_bit_res, transform=random_data_transform)
-
-	train_random_dataloader = DataLoader(train_random_dataset, batch_size=batch_size,
-											shuffle=True, drop_last=True)
-	val_random_dataloader = DataLoader(val_random_dataset, batch_size=batch_size,
-										shuffle=False, drop_last=True)
+	train_dataloader, val_dataloader,train_random_dataloader, val_random_dataloader = train.data_loader()
 
 	train.train(train_dataloader, val_dataloader, train_random_dataloader, val_random_dataloader)
 
