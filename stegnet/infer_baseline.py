@@ -84,3 +84,7 @@ with torch.no_grad():
 	cover_mse /= i
 	secret_mse /= i
 	quantized_secret_mse /= i
+
+print(f'Cover MSE: {cover_mse}')
+print(f'Secret MSE: {secret_mse}')
+print(f'Embed Quantized, Secret MSE: {quantized_secret_mse}')
