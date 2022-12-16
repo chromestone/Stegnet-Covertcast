@@ -14,6 +14,7 @@ from torchvision import transforms as T
 from torchvision import datasets
 
 import cv2
+import numpy as np
 from tqdm import tqdm
 
 from model import Stegnet
@@ -32,12 +33,15 @@ DATA_PATH = sys.argv[2]
 OUTPUT_PATH = sys.argv[3]
 
 data_transform = T.Compose([
-			T.ToTensor(),
-			T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-		])
+	T.ToTensor(),
+	T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+mean_arr = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+std_arr = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 test_dataset = datasets.ImageFolder(os.path.join(DATA_PATH, 'test'), transform=data_transform)
-assert BATCH_SIZE % len(test_dataset) == 0
+assert len(test_dataset) % (2 * BATCH_SIZE) == 0, len(test_dataset)
 test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE * 2,
 								shuffle=False, drop_last=False)
 
@@ -53,7 +57,7 @@ secret_mse = 0.0
 quantized_secret_mse = 0.0
 with torch.no_grad():
 
-	for i, data in enumerate(test_dataloader, start=1):
+	for i, data in tqdm(enumerate(test_dataloader, start=1)):
 
 		inputs, _ = data
 		inputs = inputs.to(DEVICE)
@@ -67,23 +71,28 @@ with torch.no_grad():
 		secret_mse += F.mse_loss(outputs, secrets).item()
 
 		np_embeds = np.transpose(embeds.detach().cpu().numpy(), (0, 2, 3, 1))
-		np_embeds = (np_embeds * [0.229, 0.224, 0.225]) + [0.485, 0.456, 0.406]
+		np_embeds = (np_embeds * std_arr) + mean_arr
 		np_embeds = np_embeds * 255
 
 		# this is really quantized
 		quantized_embeds = np.clip(np_embeds, 0, 255).astype(np.uint8)
 
 		# these are floats, only using quantized as variable name
-		quantized_tensor = data_transform(quantized_embeds)
+		quantized_tensor = quantized_embeds.astype(np.float32) / 255
+		quantized_tensor = (quantized_tensor - mean_arr) / std_arr
+		quantized_tensor = torch.as_tensor(np.transpose(quantized_tensor, (0, 3, 1, 2)),
+											device=DEVICE)
 		quantized_outputs = decoder(quantized_tensor)
 		quantized_secret_mse += F.mse_loss(quantized_outputs, secrets).item()
 
-		cv2.imwrite(os.path.join(OUTPUT_PATH, f'batch{i}.png'),
-					cv2.cvtColor(quantized_embeds, cv2.COLOR_RGB2BGR))
+		for j in range(BATCH_SIZE):
 
-	cover_mse /= i
-	secret_mse /= i
-	quantized_secret_mse /= i
+			cv2.imwrite(os.path.join(OUTPUT_PATH, f'batch{i}_{j}.png'),
+						cv2.cvtColor(quantized_embeds[j], cv2.COLOR_RGB2BGR))
+
+cover_mse /= i
+secret_mse /= i
+quantized_secret_mse /= i
 
 print(f'Cover MSE: {cover_mse}')
 print(f'Secret MSE: {secret_mse}')
