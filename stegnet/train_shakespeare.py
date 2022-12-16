@@ -28,7 +28,7 @@ from my_datasets import dataset_from_text
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class Training():
-	def __init__(self, batch_size, epochs, six_bit_res):
+	def __init__(self, batch_size, epochs, six_bit_res, stride):
 		args = self.load_args()
 		# loading arguments
 		self.data_path = args.dataset
@@ -43,6 +43,7 @@ class Training():
 		self.batch_size = batch_size
 		self.epochs = epochs
 		self.six_bit_res = six_bit_res
+		self.stride = stride
 		# create output directory
 		if self.load_weights:
 			self.output_path = output_path/self.load_weights
@@ -83,10 +84,10 @@ class Training():
 			T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])])
 
 		train_text_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_train.txt'),
-												(64, 64), self.six_bit_res,
+												self.stride, (64, 64), self.six_bit_res,
 												transform=text_data_transform)
 		val_text_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_val.txt'),
-												(64, 64), self.six_bit_res,
+												self.stride, (64, 64), self.six_bit_res,
 												transform=text_data_transform)
 
 		train_text_dataloader = DataLoader(train_text_dataset, batch_size=batch_size,
@@ -201,7 +202,9 @@ if __name__ == '__main__':
 	batch_size = 64
 	epochs = 100
 	six_bit_res = (2, 2)
-	train = Training(batch_size, epochs, six_bit_res)
+	# arbitrary value. there are 34426961 examples at stride 1 and 43 is a nice factor
+	stride = 43
+	train = Training(batch_size, epochs, six_bit_res, stride)
 
 	train_dataloader, val_dataloader,train_text_dataloader, val_text_dataloader = train.data_loader()
 

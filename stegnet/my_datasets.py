@@ -56,7 +56,7 @@ class RandomDataset(Dataset):
 
 class BitArrayDataset(Dataset):
 
-	def __init__(self, bit_array, img_size, six_bit_res, transform=None):
+	def __init__(self, bit_array, stride, img_size, six_bit_res, transform=None):
 		"""
 		bit_array is any numpy array of 0's and 1's
 		"""
@@ -73,12 +73,16 @@ class BitArrayDataset(Dataset):
 		assert bit_array.shape[0] > self.bits_per_img
 		self.bit_array = bit_array
 		self.length = bit_array.shape[0] + 1 - self.bits_per_img
+		assert stride <= self.length
+		self.stride = stride
 
 	def __len__(self):
 
-		return self.length
+		return self.length // self.stride
 
 	def __getitem__(self, idx):
+
+		idx *= self.stride
 
 		h, w = self.img_size
 		h_res, w_res = self.six_bit_res
@@ -103,7 +107,7 @@ class BitArrayDataset(Dataset):
 
 		return img
 
-def dataset_from_text(filepath, img_size, six_bit_res, transform=None):
+def dataset_from_text(filepath, stride, img_size, six_bit_res, transform=None):
 
 	with open(filepath, 'r', encoding='utf-8') as fp:
 
@@ -115,9 +119,9 @@ def dataset_from_text(filepath, img_size, six_bit_res, transform=None):
 
 			for byte_str in bytearray(line, 'utf-8'):
 
-				for the_bit in format(byte_str, 'b'):
+				for the_bit in format(byte_str, '08b'):
 
 					yield the_bit
 
 	bit_array = np.fromiter(_bit_iter(), dtype=np.uint8)
-	return BitArrayDataset(bit_array, img_size, six_bit_res, transform)
+	return BitArrayDataset(bit_array, stride, img_size, six_bit_res, transform)
