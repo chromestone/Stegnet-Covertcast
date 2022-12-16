@@ -1,14 +1,5 @@
 """
-
-DEPRECATED Usage:
-mkdir ckpt_dir
-python3 train_random.py tiny-imagenet-200 ckpt_dir none [restart ckpt]
-python3 train_random.py tiny-imagenet-200 ckpt_dir corr [restart ckpt]
-
-Sources:
-https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
-https://towardsdatascience.com/pytorch-ignite-classifying-tiny-imagenet-with-efficientnet-e5b1768e5e8f
-https://pytorch.org/tutorials/beginner/saving_loading_models.html
+TODO
 """
 from itertools import chain
 import os, argparse
@@ -27,7 +18,7 @@ from tqdm import tqdm
 from model import Stegnet
 from loss import correlation
 
-from my_datasets import RandomDataset
+from my_datasets import dataset_from_text
 
 # assert len(sys.argv) > 1, 'Specify data path.'
 # assert len(sys.argv) > 2, 'Specify output path.'
@@ -85,16 +76,18 @@ class Training():
 		val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size,
 							shuffle=False, drop_last=True)
 
-		random_data_transform = T.Compose([
-		T.ToTensor(),
-		# possible values are 0, 32, 160, 192 (divided by 255 I think)
-		# so midpoint that we want to be 0 is 96. 96/255 is about 0.376.
-		T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])])
-		# dividing by 2 keeps training examples per epoch equivalent
-		train_random_dataset = RandomDataset(len(train_dataloader.dataset) // 2, 123456789, (64, 64),
-												self.six_bit_res, transform=random_data_transform)
-		val_random_dataset = RandomDataset(len(val_dataloader.dataset), 987654321, (64, 64),
-											self.six_bit_res, transform=random_data_transform)
+		text_data_transform = T.Compose([
+			T.ToTensor(),
+			# possible values are 0, 32, 160, 192 (divided by 255 I think)
+			# so midpoint that we want to be 0 is 96. 96/255 is about 0.376.
+			T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])])
+
+		text_random_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_train.txt'),
+												(64, 64), self.six_bit_res,
+												transform=random_data_transform)
+		val_random_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_val.txt'),
+												(64, 64), self.six_bit_res,
+												transform=random_data_transform)
 
 		train_random_dataloader = DataLoader(train_random_dataset, batch_size=batch_size,
 												shuffle=True, drop_last=True)
@@ -125,6 +118,9 @@ class Training():
 		if self.load_weights:
 			encoder, decoder, optimizer, start_epoch = self.load_ckpts(encoder, decoder, optimizer)
 
+		# this ensures each epoch has roughly the same number of examples
+		STOP_ITER = len(train_dataloader.dataset) // 2
+
 		for epoch in range(start_epoch, self.epochs):
 			# ----------------- training -----------------
 			encoder.train()
@@ -154,6 +150,9 @@ class Training():
 				loss.backward()
 				optimizer.step()
 				train_loss += loss.item()
+				if i >= STOP_ITER:
+
+					break
 			train_loss /= i
 
 			# save weights
@@ -207,4 +206,3 @@ if __name__ == '__main__':
 	train_dataloader, val_dataloader,train_random_dataloader, val_random_dataloader = train.data_loader()
 
 	train.train(train_dataloader, val_dataloader, train_random_dataloader, val_random_dataloader)
-

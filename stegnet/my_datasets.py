@@ -1,5 +1,5 @@
 """
-TODO
+This module contains custom defined PyTorch datasets.
 """
 
 import numpy as np
@@ -53,3 +53,71 @@ class RandomDataset(Dataset):
 			img = self.transform(img)
 
 		return img
+
+class BitArrayDataset(Dataset):
+
+	def __init__(self, bit_array, img_size, six_bit_res, transform=None):
+		"""
+		bit_array is any numpy array of 0's and 1's
+		"""
+
+		h, w = img_size
+		h_res, w_res = six_bit_res
+		assert h % h_res == 0 and w % w_res == 0
+
+		self.img_size = img_size
+		self.six_bit_res = six_bit_res
+		self.bits_per_img = (h // h_res) * (w // w_res) * 6
+		self.transform = transform
+
+		assert bit_array.shape[0] > bits_per_img
+		self.bit_array = bit_array
+		self.length = bit_array.shape[0] + 1 - bits_per_img
+
+	def __len__(self):
+
+		return self.length
+
+	def __getitem__(self, idx):
+
+		h, w = self.img_size
+		h_res, w_res = self.six_bit_res
+		stuff = np.reshape(self.bit_array[idx : idx + self.bits_per_img],
+							(h // h_res, w // w_res, 6))
+
+		rgb_stuff = np.empty((h // h_res, w // w_res, 3), dtype=np.uint8)
+		rgb_stuff[:, :, 0] = 160 * stuff[:, :, 0] + 32 * stuff[:, :, 1]
+		rgb_stuff[:, :, 1] = 160 * stuff[:, :, 2] + 32 * stuff[:, :, 3]
+		rgb_stuff[:, :, 2] = 160 * stuff[:, :, 4] + 32 * stuff[:, :, 5]
+
+		img = np.empty((h, w, 3), dtype=np.uint8)
+		for i in range(h_res):
+
+			for j in range(w_res):
+
+				img[i::h_res, j::w_res] = rgb_stuff
+
+		if self.transform:
+
+			img = self.transform(img)
+
+		return img
+
+def dataset_from_text(filepath, img_size, six_bit_res, transform=None):
+
+	with open(filepath, 'r', encoding='utf-8') as fp:
+
+		line_list = fp.readlines()
+
+	def _bit_iter():
+
+		for line in line_list:
+
+			for byte_str in bytearray(line, 'utf-8'):
+
+				for the_bit in format(x, 'b'):
+
+					yield the_bit
+
+	bit_array = fromiter(_bit_iter(), dtype=np.uint8)
+	return BitArrayDataset(bit_array, img_size, six_bit_res, transform)

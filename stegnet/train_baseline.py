@@ -1,6 +1,6 @@
 """
 
-Usage:
+DEPRECATED Usage:
 mkdir ckpt_dir
 python3 train_baseline.py tiny-imagenet-200 ckpt_dir none [restart ckpt]
 python3 train_baseline.py tiny-imagenet-200 ckpt_dir corr [restart ckpt]
