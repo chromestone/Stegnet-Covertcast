@@ -82,19 +82,19 @@ class Training():
 			# so midpoint that we want to be 0 is 96. 96/255 is about 0.376.
 			T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])])
 
-		text_random_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_train.txt'),
+		train_text_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_train.txt'),
 												(64, 64), self.six_bit_res,
-												transform=random_data_transform)
-		val_random_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_val.txt'),
+												transform=text_data_transform)
+		val_text_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_val.txt'),
 												(64, 64), self.six_bit_res,
-												transform=random_data_transform)
+												transform=text_data_transform)
 
-		train_random_dataloader = DataLoader(train_random_dataset, batch_size=batch_size,
+		train_text_dataloader = DataLoader(train_text_dataset, batch_size=batch_size,
 												shuffle=True, drop_last=True)
-		val_random_dataloader = DataLoader(val_random_dataset, batch_size=batch_size,
+		val_text_dataloader = DataLoader(val_text_dataset, batch_size=batch_size,
 										shuffle=False, drop_last=True)
 
-		return train_dataloader, val_dataloader, train_random_dataloader, val_random_dataloader
+		return train_dataloader, val_dataloader, train_text_dataloader, val_text_dataloader
 	
 	def load_ckpts(self, encoder, decoder, optimizer):
 		print(f'Loading weights from {self.output_path}')
@@ -110,7 +110,7 @@ class Training():
 		return encoder, decoder, optimizer, len(all_weights)
 	
 	def train(self, train_dataloader, val_dataloader,
-				train_random_dataloader, val_random_dataloader):
+				train_text_dataloader, val_text_dataloader):
 		encoder = Stegnet(6).to(DEVICE)
 		decoder = Stegnet(3).to(DEVICE)
 		optimizer = torch.optim.Adam(chain(encoder.parameters(), decoder.parameters()))
@@ -128,7 +128,7 @@ class Training():
 
 			train_loss = 0.0
 			for i, (data, secrets) in tqdm(enumerate(zip(train_dataloader,
-															train_random_dataloader),
+															train_text_dataloader),
 														start=1)):
 
 				covers, _ = data
@@ -173,7 +173,7 @@ class Training():
 			with torch.no_grad():
 
 				val_loss = 0.0
-				for i, (data, secrets) in enumerate(zip(val_dataloader, val_random_dataloader),
+				for i, (data, secrets) in enumerate(zip(val_dataloader, val_text_dataloader),
 													start=1):
 
 					covers, _ = data
@@ -203,6 +203,6 @@ if __name__ == '__main__':
 	six_bit_res = (2, 2)
 	train = Training(batch_size, epochs, six_bit_res)
 
-	train_dataloader, val_dataloader,train_random_dataloader, val_random_dataloader = train.data_loader()
+	train_dataloader, val_dataloader,train_text_dataloader, val_text_dataloader = train.data_loader()
 
-	train.train(train_dataloader, val_dataloader, train_random_dataloader, val_random_dataloader)
+	train.train(train_dataloader, val_dataloader, train_text_dataloader, val_text_dataloader)
