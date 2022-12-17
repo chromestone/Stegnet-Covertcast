@@ -44,9 +44,9 @@ std_arr = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 test_dataset = datasets.ImageFolder(os.path.join(DATA_PATH, 'test'), transform=data_transform)
 assert len(test_dataset) % (BATCH_SIZE) == 0, len(test_dataset)
 test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE,
-								shuffle=False, drop_last=False)
+								shuffle=False, drop_last=True)
 
-random_data_transform = T.Compose([
+text_data_transform = T.Compose([
 	T.ToTensor(),
 	# possible values are 0, 32, 160, 192 (divided by 255 I think)
 	# so midpoint that we want to be 0 is 96. 96/255 is about 0.376.
@@ -56,11 +56,12 @@ random_data_transform = T.Compose([
 secret_mean_arr = torch.as_tensor(np.array([[[0.376]], [[0.376]], [[0.376]]], dtype=np.float32), device=DEVICE)
 secret_std_arr = torch.as_tensor(np.array([[[0.376]], [[0.376]], [[0.376]]], dtype=np.float32), device=DEVICE)
 
-test_random_dataset = RandomDataset(len(test_dataset), 543298761, (64, 64),
-									SIX_BIT_RES, transform=random_data_transform)
-test_random_dataset.test = True
-test_random_dataloader = DataLoader(test_random_dataset, batch_size=BATCH_SIZE,
-								shuffle=False, drop_last=False)
+test_text_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_test.txt'),
+												43, (64, 64), SIX_BIT_RES,
+												transform=text_data_transform)
+test_text_dataset.test = True
+test_text_dataloader = DataLoader(test_text_dataset, batch_size=BATCH_SIZE,
+								shuffle=False, drop_last=True)
 
 def bit_level_accuracy(outputs, ground_truth):
 
@@ -92,11 +93,11 @@ quantized_secret_mse = 0.0
 quantized_secret_accuracy = 0
 with torch.no_grad():
 
-	for i, (data, random_data) in enumerate(zip(test_dataloader, test_random_dataloader),
+	for i, (data, text_data) in enumerate(zip(test_dataloader, test_text_dataloader),
 										start=1):
 
 		covers, _ = data
-		secrets, ground_truth = random_data
+		secrets, ground_truth = text_data
 
 		covers = covers.to(DEVICE)
 		secrets = secrets.to(DEVICE)

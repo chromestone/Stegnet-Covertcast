@@ -82,6 +82,7 @@ class BitArrayDataset(Dataset):
 		self.length = bit_array.shape[0] + 1 - self.bits_per_img
 		assert stride <= self.length
 		self.stride = stride
+		self.test = False
 
 	def __len__(self):
 
@@ -112,7 +113,13 @@ class BitArrayDataset(Dataset):
 
 			img = self.transform(img)
 
-		return img
+		if not self.test:
+
+			return img
+
+		else:
+
+			return img, stuff
 
 class TransmitDataset(BitArrayDataset):
 	"""
@@ -176,7 +183,13 @@ class TransmitDataset(BitArrayDataset):
 
 			img = self.transform(img)
 
-		return img
+		if not self.test:
+
+			return img
+
+		else:
+
+			return img, stuff
 
 def dataset_from_text(filepath, stride, img_size, six_bit_res, transform=None):
 
