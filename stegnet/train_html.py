@@ -93,7 +93,7 @@ class Training():
 				continue
 
 			train_dataset_list.append(dataset_from_binary(os.path.join(self.data_path, 'html', 'train', file),
-													self.stride, (64, 64), self.six_bit_res,
+													self.stride, (64, 64), self.six_bit_res, True,
 													transform=text_data_transform))
 		for file in os.listdir(os.path.join(self.data_path, 'html', 'val')):
 
@@ -102,7 +102,7 @@ class Training():
 				continue
 
 			val_dataset_list.append(dataset_from_binary(os.path.join(self.data_path, 'html', 'val', file),
-													self.stride, (64, 64), self.six_bit_res,
+													self.stride, (64, 64), self.six_bit_res, False,
 													transform=text_data_transform))
 
 		train_text_dataset = ConcatDataset(e for e in train_dataset_list if e is not None)
@@ -137,9 +137,6 @@ class Training():
 		if self.load_weights:
 			encoder, decoder, optimizer, start_epoch = self.load_ckpts(encoder, decoder, optimizer)
 
-		# this ensures each epoch has roughly the same number of examples
-		STOP_ITER = len(train_dataloader.dataset) // 2
-
 		for epoch in range(start_epoch, self.epochs):
 			# ----------------- training -----------------
 			encoder.train()
@@ -169,9 +166,6 @@ class Training():
 				loss.backward()
 				optimizer.step()
 				train_loss += loss.item()
-				if i >= STOP_ITER:
-
-					break
 			train_loss /= i
 
 			# save weights

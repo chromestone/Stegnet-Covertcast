@@ -119,9 +119,6 @@ class Training():
 		if self.load_weights:
 			encoder, decoder, optimizer, start_epoch = self.load_ckpts(encoder, decoder, optimizer)
 
-		# this ensures each epoch has roughly the same number of examples
-		STOP_ITER = len(train_dataloader.dataset) // 2
-
 		for epoch in range(start_epoch, self.epochs):
 			# ----------------- training -----------------
 			encoder.train()
@@ -151,9 +148,6 @@ class Training():
 				loss.backward()
 				optimizer.step()
 				train_loss += loss.item()
-				if i >= STOP_ITER:
-
-					break
 			train_loss /= i
 
 			# save weights
