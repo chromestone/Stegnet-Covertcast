@@ -146,7 +146,8 @@ def dataset_from_binary(filepath, stride, img_size, six_bit_res, transform=None)
 	h_res, w_res = six_bit_res
 	assert h % h_res == 0 and w % w_res == 0
 	bits_per_img = (h // h_res) * (w // w_res) * 6
-	if bit_array.shape[0] < bits_per_img:
+	length = bit_array.shape[0] + 1 - bits_per_img
+	if bit_array.shape[0] < bits_per_img or stride > length:
 
 		return None
 
