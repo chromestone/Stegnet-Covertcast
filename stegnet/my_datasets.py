@@ -70,7 +70,7 @@ class BitArrayDataset(Dataset):
 		self.bits_per_img = (h // h_res) * (w // w_res) * 6
 		self.transform = transform
 
-		assert bit_array.shape[0] > self.bits_per_img
+		assert bit_array.shape[0] >= self.bits_per_img
 		self.bit_array = bit_array
 		self.length = bit_array.shape[0] + 1 - self.bits_per_img
 		assert stride <= self.length
@@ -124,4 +124,30 @@ def dataset_from_text(filepath, stride, img_size, six_bit_res, transform=None):
 					yield the_bit
 
 	bit_array = np.fromiter(_bit_iter(), dtype=np.uint8)
+	return BitArrayDataset(bit_array, stride, img_size, six_bit_res, transform)
+
+def dataset_from_binary(filepath, stride, img_size, six_bit_res, transform=None):
+
+	with open(filepath, 'rb') as fp:
+
+		binary_content = fp.read()
+
+	def _bit_iter():
+
+		for byte_str in binary_content:
+
+			for the_bit in format(byte_str, '08b'):
+
+				yield the_bit
+
+	bit_array = np.fromiter(_bit_iter(), dtype=np.uint8)
+
+	h, w = img_size
+	h_res, w_res = six_bit_res
+	assert h % h_res == 0 and w % w_res == 0
+	bits_per_img = (h // h_res) * (w // w_res) * 6
+	if bit_array.shape[0] < bits_per_img:
+
+		return None
+
 	return BitArrayDataset(bit_array, stride, img_size, six_bit_res, transform)

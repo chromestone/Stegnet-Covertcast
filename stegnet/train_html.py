@@ -18,7 +18,7 @@ from tqdm import tqdm
 from model import Stegnet
 from loss import correlation
 
-from my_datasets import dataset_from_text
+from my_datasets import dataset_from_binary
 
 # assert len(sys.argv) > 1, 'Specify data path.'
 # assert len(sys.argv) > 2, 'Specify output path.'
@@ -86,21 +86,27 @@ class Training():
 		train_dataset_list = []
 		val_dataset_list = []
 
-		for file in os.listdir(self.data_path):
+		for file in os.listdir(os.path.join(self.data_path, 'html', 'train')):
 
-			if file == '.DS_Store':
+			if file.startswith('.'):
 
 				continue
 
-			train_dataset_list.append(dataset_from_text(os.path.join(self.data_path, file),
+			train_dataset_list.append(dataset_from_binary(os.path.join(self.data_path, 'html', 'train', file),
 													self.stride, (64, 64), self.six_bit_res,
 													transform=text_data_transform))
-			val_dataset_list.append(dataset_from_text(os.path.join(self.data_path, file),
+		for file in os.listdir(os.path.join(self.data_path, 'html', 'val')):
+
+			if file.startswith('.'):
+
+				continue
+
+			val_dataset_list.append(dataset_from_binary(os.path.join(self.data_path, 'html', 'val', file),
 													self.stride, (64, 64), self.six_bit_res,
 													transform=text_data_transform))
 
-		train_text_dataset = ConcatDataset(train_dataset_list)
-		val_text_dataset = ConcatDataset(val_dataset_list)
+		train_text_dataset = ConcatDataset(e for e in train_dataset_list if e is not None)
+		val_text_dataset = ConcatDataset(e for e in val_dataset_list if e is not None)
 
 		train_text_dataloader = DataLoader(train_text_dataset, batch_size=batch_size,
 												shuffle=True, drop_last=True)
