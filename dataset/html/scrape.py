@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import http.client
 import os
+import socket
 import sys
 import urllib.error
 import urllib.request
@@ -23,13 +25,19 @@ for i, url in enumerate(url_list):
 
 	try:
 
-		with urllib.request.urlopen('http://' + url) as response:
+		with urllib.request.urlopen('http://' + url, timeout=3) as response:
 
 			html = response.read()
+
 			encoding = response.headers.get_content_charset()
+			if encoding is None:
+
+				encoding = 'utf-8'
+
 			if encoding not in ('utf-8', 'iso-8859-1'):
 
 				print(url, 'unhandled encoding', encoding)
+				continue
 
 			with open(os.path.join(OUTPUT_DIR, f'file_{i}.bin'), 'w', encoding=encoding) as fp:
 
@@ -38,6 +46,6 @@ for i, url in enumerate(url_list):
 	except urllib.error.HTTPError as e:
 
 		print(url, e.code)
-	except UnicodeError as e:
+	except (http.client.IncompleteRead, urllib.error.URLError, UnicodeError, socket.timeout) as e:
 
-		print(e)
+		print(url, e)
