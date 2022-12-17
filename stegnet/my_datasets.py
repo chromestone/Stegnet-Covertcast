@@ -24,6 +24,7 @@ class RandomDataset(Dataset):
 		the_rng = np.random.default_rng(seed)
 		self.random_stuff = the_rng.integers(2, size=length - 1 + self.bits_per_img,
 												dtype=np.uint8)
+		self.test = False
 
 	def __len__(self):
 
@@ -52,7 +53,13 @@ class RandomDataset(Dataset):
 
 			img = self.transform(img)
 
-		return img
+		if not self.test:
+
+			return img
+
+		else:
+
+			return img, stuff
 
 class BitArrayDataset(Dataset):
 

@@ -53,28 +53,28 @@ random_data_transform = T.Compose([
 	T.Normalize(mean=[0.376, 0.376, 0.376], std=[0.376, 0.376, 0.376])
 ])
 
-secret_mean_arr = torch.as_tensor(np.array([0.376, 0.376, 0.376], dtype=np.float32), device=DEVICE)
-secret_std_arr = torch.as_tensor(np.array([0.376, 0.376, 0.376], dtype=np.float32), device=DEVICE)
+secret_mean_arr = torch.as_tensor(np.array([[[0.376]], [[0.376]], [[0.376]]], dtype=np.float32), device=DEVICE)
+secret_std_arr = torch.as_tensor(np.array([[[0.376]], [[0.376]], [[0.376]]], dtype=np.float32), device=DEVICE)
 
 test_random_dataset = RandomDataset(len(test_dataset), 543298761, (64, 64),
 									SIX_BIT_RES, transform=random_data_transform)
-bits_per_img = test_random_dataset.bits_per_img
+test_random_dataset.test = True
 test_random_dataloader = DataLoader(test_random_dataset, batch_size=BATCH_SIZE,
 								shuffle=False, drop_last=True)
 
-def bit_level_accuracy(outputs):
+def bit_level_accuracy(outputs, ground_truth):
 
 	transformed_outputs = ((outputs * secret_std_arr) + secret_mean_arr) * 255
 	# basically unexpand image
 	decoded = F.avg_pool2d(transformed_outputs, SIX_BIT_RES).detach().cpu().numpy()
-	decoded = np.reshape(decoded, (BATCH_SIZE, bits_per_img, 3))
+	_, height, width, _ = decoded.shape
+	decoded = np.reshape(decoded, (BATCH_SIZE, height, width, 3))
 
-	decoded_bits = np.empty((BATCH_SIZE, bits_per_img, 6), dtype=np.uint8)
+	decoded_bits = np.empty((BATCH_SIZE, height, width, 6), dtype=np.uint8)
 	first_bit_mask = decoded < 96
 	decoded_bits[..., 0::2] = first_bit_mask
 	decoded_bits[..., 1::2] = np.where(first_bit_mask, decoded, decoded - 160) < 16
-	return np.mean(decoded_bits.flatten() ==
-		test_random_dataset.random_stuff[i * BATCH_SIZE : (i + 1) * BATCH_SIZE])
+	return np.mean(decoded_bits.flatten() == ground_truth)
 
 encoder = Stegnet(6).to(DEVICE)
 decoder = Stegnet(3).to(DEVICE)
@@ -90,32 +90,22 @@ quantized_secret_mse = 0.0
 quantized_secret_accuracy = 0
 with torch.no_grad():
 
-	for i, (data, secrets) in enumerate(zip(test_dataloader, test_random_dataloader),
+	for i, (data, random_data) in enumerate(zip(test_dataloader, test_random_dataloader),
 										start=1):
 
 		covers, _ = data
+		secrets, ground_truth = random_data
 
 		covers = covers.to(DEVICE)
 		secrets = secrets.to(DEVICE)
+		ground_truth = ground_truth.detach().cpu().numpy()
 
 		embeds = encoder(torch.cat([covers, secrets], dim=1))
 		outputs = decoder(embeds)
 
 		cover_mse += F.mse_loss(embeds, covers).item()
 		secret_mse += F.mse_loss(outputs, secrets).item()
-		secret_accuracy += bit_level_accuracy(outputs)
-
-		transformed_outputs = ((outputs * secret_std_arr) + secret_mean_arr) * 255
-		# basically unexpand image
-		decoded = F.avg_pool2d(transformed_outputs, SIX_BIT_RES).detach().cpu().numpy()
-		decoded = np.reshape(decoded, (BATCH_SIZE, bits_per_img, 3))
-
-		decoded_bits = np.empty((BATCH_SIZE, bits_per_img, 6), dtype=np.uint8)
-		first_bit_mask = decoded < 96
-		decoded_bits[..., 0::2] = first_bit_mask
-		decoded_bits[..., 1::2] = np.where(first_bit_mask, decoded, decoded - 160) < 16
-		secret_accuracy += np.mean(decoded_bits.flatten() ==
-			test_random_dataset.random_stuff[i * BATCH_SIZE : (i + 1) * BATCH_SIZE])
+		secret_accuracy += bit_level_accuracy(outputs, ground_truth)
 
 		np_embeds = np.transpose(embeds.detach().cpu().numpy(), (0, 2, 3, 1))
 		np_embeds = (np_embeds * std_arr) + mean_arr
@@ -131,7 +121,7 @@ with torch.no_grad():
 											device=DEVICE)
 		quantized_outputs = decoder(quantized_tensor)
 		quantized_secret_mse += F.mse_loss(quantized_outputs, secrets).item()
-		quantized_secret_accuracy += bit_level_accuracy(quantized_outputs)
+		quantized_secret_accuracy += bit_level_accuracy(quantized_outputs, ground_truth)
 
 		for j in range(BATCH_SIZE):
 
