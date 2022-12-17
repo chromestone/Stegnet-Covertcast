@@ -67,14 +67,14 @@ def bit_level_accuracy(outputs, ground_truth):
 	transformed_outputs = ((outputs * secret_std_arr) + secret_mean_arr) * 255
 	# basically unexpand image
 	decoded = F.avg_pool2d(transformed_outputs, SIX_BIT_RES).detach().cpu().numpy()
-	_, height, width, _ = decoded.shape
+	_, _, height, width = decoded.shape
 	decoded = np.reshape(decoded, (BATCH_SIZE, height, width, 3))
 
 	decoded_bits = np.empty((BATCH_SIZE, height, width, 6), dtype=np.uint8)
 	first_bit_mask = decoded < 96
 	decoded_bits[..., 0::2] = first_bit_mask
 	decoded_bits[..., 1::2] = np.where(first_bit_mask, decoded, decoded - 160) < 16
-	return np.mean(decoded_bits.flatten() == ground_truth)
+	return np.mean(decoded_bits == ground_truth)
 
 encoder = Stegnet(6).to(DEVICE)
 decoder = Stegnet(3).to(DEVICE)
@@ -130,8 +130,12 @@ with torch.no_grad():
 
 cover_mse /= i
 secret_mse /= i
+secret_accuracy /=i
 quantized_secret_mse /= i
+quantized_secret_accuracy /= i
 
 print(f'Cover MSE: {cover_mse}')
 print(f'Secret MSE: {secret_mse}')
+print(f'Secret Accuracy: {secret_accuracy}')
 print(f'Embed Quantized, Secret MSE: {quantized_secret_mse}')
+print(f'Embed Quantized, Secret Accuracy: {quantized_secret_accuracy}')
