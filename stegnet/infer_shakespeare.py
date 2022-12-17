@@ -56,7 +56,7 @@ text_data_transform = T.Compose([
 secret_mean_arr = torch.as_tensor(np.array([[[0.376]], [[0.376]], [[0.376]]], dtype=np.float32), device=DEVICE)
 secret_std_arr = torch.as_tensor(np.array([[[0.376]], [[0.376]], [[0.376]]], dtype=np.float32), device=DEVICE)
 
-test_text_dataset = dataset_from_text(os.path.join(self.data_path, 'shakespeare_test.txt'),
+test_text_dataset = dataset_from_text(os.path.join(DATA_PATH, 'shakespeare_test.txt'),
 												43, (64, 64), SIX_BIT_RES,
 												transform=text_data_transform)
 test_text_dataset.test = True
