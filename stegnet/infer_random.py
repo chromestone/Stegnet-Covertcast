@@ -92,8 +92,8 @@ quantized_secret_mse = 0.0
 quantized_secret_accuracy = 0
 with torch.no_grad():
 
-	for i, (data, random_data) in enumerate(zip(test_dataloader, test_random_dataloader),
-										start=1):
+	for i, (data, random_data) in tqdm(enumerate(zip(test_dataloader, test_random_dataloader),
+										start=1)):
 
 		covers, _ = data
 		secrets, ground_truth = random_data

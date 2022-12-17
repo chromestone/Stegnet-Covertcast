@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 from model import Stegnet
 
-from my_datasets import RandomDataset
+from my_datasets import dataset_from_text
 
 BATCH_SIZE = 50
 SIX_BIT_RES = (2, 2)
@@ -93,8 +93,8 @@ quantized_secret_mse = 0.0
 quantized_secret_accuracy = 0
 with torch.no_grad():
 
-	for i, (data, text_data) in enumerate(zip(test_dataloader, test_text_dataloader),
-										start=1):
+	for i, (data, text_data) in tqdm(enumerate(zip(test_dataloader, test_text_dataloader),
+										start=1)):
 
 		covers, _ = data
 		secrets, ground_truth = text_data
