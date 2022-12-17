@@ -220,7 +220,7 @@ if __name__ == '__main__':
 	batch_size = 64
 	epochs = 100
 	six_bit_res = (2, 2)
-	stride = 1
+	stride = 419
 	train = Training(batch_size, epochs, six_bit_res, stride)
 
 	train_dataloader, val_dataloader,train_text_dataloader, val_text_dataloader = train.data_loader()
