@@ -49,4 +49,3 @@ while True:
 
 		badpractice_stop = True
 		break
-
