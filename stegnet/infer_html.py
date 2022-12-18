@@ -64,7 +64,8 @@ file_list = sorted((f for f in os.listdir(os.path.join(DATA_PATH, 'html', 'test'
 for f in file_list:
 
 	ttd = dataset_from_binary(os.path.join(DATA_PATH, 'html', 'test', f),
-								False, transform=text_data_transform)
+								419, (64, 64), SIX_BIT_RES, False,
+								transform=text_data_transform)
 	if ttd is not None:
 
 		ttd.test = True
